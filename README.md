@@ -46,8 +46,46 @@ target tile is a wall or off‑map, the flame falls back to BFS pathfinding.
 |------------------|--------|
 | `1` / `2` / `3`  | Select the spell at that slot (shows its previsualisation tiles) |
 | Left click       | Cast the selected spell on a highlighted tile, click a spell icon, or hit the end‑turn button |
-| `SPACE`          | End the turn immediately (spawns the next wave) |
-| `ESC`            | Quit |
+| `SPACE`          | End the turn (or, while placing flames, validate the wave) |
+| `H`              | Ask the AI for a move hint (same as the **Indice** button) |
+| `ESC`            | Back to the home screen (or quit from the home screen) |
+
+### Game modes
+
+Launching opens a **home screen** with two modes:
+
+- **Jouer** — the normal game: each wave spawns from the built‑in random
+  patterns.
+- **Placer mes flammes** — *you* design every wave. Before each turn you click
+  tiles to place that wave's flames (up to **6 per wave, over 6 waves**), then
+  **Valider** (or `SPACE`) and play the turn. Tiles may be empty **or already
+  holding a flame** (you can stack a new wave onto existing flames); walls, the
+  player and Bolgrot are off‑limits. Same idea as the online custom mode.
+
+The window **stays open when a game ends**: a *Victoire !* / *Défaite* banner
+offers **Rejouer** (`R`) or **Accueil**. `ESC` returns to the home screen at any
+time.
+
+### AI move hints
+
+The right‑hand panel has an **Indice** button (or press `H`) that asks a trained
+AI what to play in the current position and rings the recommended tile (or the
+end‑turn button). You pick:
+
+- **Moteur** — *Rapide* (the flat MLP `az.pt`) or *Fort* (the grid‑CNN
+  `az_cnn_deep.pt`, stronger but slower).
+- **Budget** — search simulations per move: **300 / 1000 / 8000** (more = stronger
+  and slower; 8000 with *Fort* takes tens of seconds).
+
+The **Autoplay** button lets the chosen agent play the whole game on its own —
+it applies its own move each step (with a short pause so you can watch) until the
+board is cleared, the player dies, or you press **Autoplay** again to stop and
+take back control. The engine/budget selectors apply to autoplay too.
+
+The search runs on a background thread so the window stays responsive, and it
+reuses the exact agents from `src/ai/`. **Hints and autoplay require the `ai`
+extra** (`uv sync --extra ai` or `pip install -e ".[ai]"`); without it the game
+still plays and the buttons just report the missing dependency.
 
 ---
 

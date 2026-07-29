@@ -19,6 +19,8 @@ CASE_COLOR_1 = (205, 178, 111)
 CASE_COLOR_2 = (189, 185, 132)
 SPAWN_COLOR_1 = (151, 13, 158)
 PREVISU_COLOR = (9, 91, 158)
+# Fills the AI hint's recommended target tile.
+HINT_COLOR = (40, 200, 70)
 BACKGROUND_POPUP = (79, 79, 61)
 
 RIGHT_PANEL_W = 400
@@ -31,6 +33,10 @@ TIME_TURN = 120
 
 # Number of flame waves that spawn over a game (exactly this many, no repeats).
 NB_WAVES = 6
+
+# Custom mode: how many flames the player may place per wave (matches the
+# 6-tile waves of the normal game).
+CUSTOM_FLAMES_PER_WAVE = 6
 
 # Player starting hit points (used for observation normalisation).
 MAX_HP = 40

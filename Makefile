@@ -8,10 +8,10 @@ LRFLOOR := 0.1
 all: run
 
 install:
-	$(UV) sync
+	$(UV) sync --extra ai
 
 run: install
-	$(UV) run python -m $(SRC)
+	$(UV) run --extra ai python -m $(SRC)
 
 # PPO training / playback (requires the `ai` optional dependency group).
 train: install
