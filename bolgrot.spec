@@ -1,36 +1,41 @@
-# PyInstaller build spec — standalone game executable.
+# PyInstaller build spec — standalone game executable WITH the AI.
 #
-#   pyinstaller bolgrot.spec        # -> dist/bolgrot(.exe)
+#   pyinstaller bolgrot.spec --noconfirm --clean      # -> dist/bolgrot/
 #
-# This is the GAME-ONLY build: torch is excluded, so the executable is small
-# (~40-70 MB) and needs no dependencies. The AI hint / autoplay buttons still
-# appear but report that the optional `ai` extra is unavailable (a frozen app
-# can't `pip install` it) — for the AI, run from source / pip (see README).
+# This bundles torch + the trained nets, so the AI hint / autoplay work fully
+# offline. It is therefore large (~300-500 MB) and built as a **onedir** app
+# (a folder holding bolgrot(.exe) + libs), NOT a single file: unpacking a
+# few-hundred-MB torch on every launch (onefile) would make startup painfully
+# slow. Ship the whole `dist/bolgrot` folder (the CI zips it per OS).
 #
-# Data files (the map, sprite PNGs and spawn patterns) are loaded at runtime via
-# importlib.resources.files("src"), so they MUST be bundled with their package
-# paths — that is what the `datas` entries below do.
+# IMPORTANT: build in an env with **CPU-only torch**
+# (pip install torch --index-url https://download.pytorch.org/whl/cpu),
+# otherwise collect_all pulls the multi-GB CUDA libraries.
 #
 # Build on the OS you target: Windows -> .exe, Linux -> ELF, macOS -> .app
 # (PyInstaller does not cross-compile).
 
+from PyInstaller.utils.hooks import collect_all
+
+# Pull torch's submodules, extension libraries and data files.
+torch_datas, torch_binaries, torch_hidden = collect_all('torch')
+
 a = Analysis(
     ['run_game.py'],
     pathex=['.'],
-    binaries=[],
+    binaries=torch_binaries,
     datas=[
         ('src/config', 'src/config'),
         ('src/patterns', 'src/patterns'),
         ('src/sprites_png', 'src/sprites_png'),
-    ],
-    # The hint code imports these lazily (inside functions), so PyInstaller's
-    # static scan misses them; list them so a clean "install the ai extra"
-    # message shows (they hit the excluded torch and fail gracefully).
-    hiddenimports=['src.ai.policy', 'src.ai.alphazero'],
+        # The two nets the hint engine loads (Rapide = az.pt, Fort = the CNN).
+        ('src/ai/az.pt', 'src/ai'),
+        ('src/ai/az_cnn_deep.pt', 'src/ai'),
+    ] + torch_datas,
+    hiddenimports=['src.ai.policy', 'src.ai.alphazero'] + torch_hidden,
     hookspath=[],
     runtime_hooks=[],
-    # Keep the game-only build lean: never bundle the heavy ML stack.
-    excludes=['torch', 'numpy', 'torchvision', 'torchaudio'],
+    excludes=[],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -38,16 +43,23 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,      # onedir: binaries go in the COLLECT folder
     name='bolgrot',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    runtime_tmpdir=None,
-    console=False,          # windowed game; set True to see tracebacks/logs
+    upx=False,                  # UPX + torch DLLs are a known bad mix
+    console=False,              # windowed game; set True to see tracebacks
     disable_windowed_traceback=False,
     argv_emulation=False,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='bolgrot',
 )

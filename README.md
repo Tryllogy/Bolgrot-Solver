@@ -193,29 +193,33 @@ uv run --extra ai python -m src.ai.play --policy src/ai/az.pt                # w
 ## Building a standalone executable
 
 A [PyInstaller](https://pyinstaller.org/) spec (`bolgrot.spec`) freezes the game
-into a single self-contained executable — no Python install needed to play.
+**with the AI bundled** (torch + the trained nets), so hints and autoplay work
+fully offline — no Python install needed to play.
 
 ```bash
-uv pip install pyinstaller          # or: pip install -e ".[build]"
-uv run pyinstaller bolgrot.spec --noconfirm --clean
-# -> dist/bolgrot        (Linux/macOS)
-# -> dist/bolgrot.exe    (Windows)
+# CPU-only torch (the default index pulls multi-GB CUDA on Linux):
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install numpy
+pip install -e ".[build]"          # base game + PyInstaller
+pyinstaller bolgrot.spec --noconfirm --clean
+# -> dist/bolgrot/                 (a folder; run bolgrot(.exe) inside it)
 ```
 
 Notes:
 
-- **Game-only, ~20 MB.** The spec **excludes `torch`**, so the executable is
-  small and dependency-free. The AI hint / autoplay buttons still appear but
-  report that the `ai` extra is unavailable — a frozen app can't `pip install`
-  it. For the AI, run from source (`pip install -e ".[ai]"`). Bundling torch is
-  possible but makes the executable several hundred MB.
+- **AI-bundled, onedir (~300-500 MB).** Because torch is large, this is a
+  **folder** (`dist/bolgrot/`), not a single file — unpacking a few-hundred-MB
+  torch on every launch (onefile) would make startup very slow. Ship the whole
+  folder (the CI zips it). Verify a build with
+  `dist/bolgrot/bolgrot --selftest` (loads a net + runs one search).
 - **Per-OS.** PyInstaller does not cross-compile: build on Windows for a `.exe`,
-  on Linux for an ELF binary, on macOS for a `.app`. Attach the result to your
-  GitHub *Releases* for a one-click download.
-- The map, sprites and spawn patterns are bundled via the spec's `datas` (the
-  game loads them through `importlib.resources`, so they must ship with their
-  package paths). Set `console=True` in the spec to see tracebacks while
-  debugging a build.
+  on Linux for an ELF binary, on macOS for a `.app`. The
+  `.github/workflows/build.yml` workflow builds all three on GitHub's runners
+  and attaches the zips to a Release on a `v*` tag.
+- The map, sprites, spawn patterns **and nets** are bundled via the spec's
+  `datas` (the game loads them through `importlib.resources`, so they must ship
+  with their package paths). Set `console=True` in the spec to see tracebacks
+  while debugging a build.
 
 ---
 

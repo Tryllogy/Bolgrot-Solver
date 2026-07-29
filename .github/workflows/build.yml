@@ -1,12 +1,18 @@
 name: Build executables
 
+# Builds the standalone game (WITH the AI: torch + nets bundled) on Windows,
+# Linux and macOS runners. PyInstaller can't cross-compile, so each binary is
+# built on its own OS in the cloud — no local Windows/Mac needed. Trigger it:
+#   * push a tag like `v0.2.0`  -> builds AND attaches the zips to a Release
+#   * "Run workflow" in the Actions tab (workflow_dispatch) -> downloadable
+#     artifacts on the run page
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write        # create the Release and upload assets
 
 jobs:
   build:
@@ -15,13 +21,10 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            built: dist/bolgrot.exe
-            asset: bolgrot-windows.exe
+            asset: bolgrot-windows
           - os: ubuntu-latest
-            built: dist/bolgrot
             asset: bolgrot-linux
           - os: macos-latest
-            built: dist/bolgrot
             asset: bolgrot-macos
     runs-on: ${{ matrix.os }}
     steps:
@@ -31,26 +34,39 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install deps (game + PyInstaller)
+      - name: Install deps (CPU torch + game + PyInstaller)
+        shell: bash
         run: |
           python -m pip install --upgrade pip
+          # CPU-only torch on every OS (the default index would pull multi-GB
+          # CUDA on Linux).
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy
           pip install -e ".[build]"
 
-      - name: Build the executable
+      - name: Build the executable (onedir, AI bundled)
         run: pyinstaller bolgrot.spec --noconfirm --clean
 
-      - name: Name the binary per-OS
+      - name: Smoke-test the AI inside the frozen app
         shell: bash
-        run: cp "${{ matrix.built }}" "${{ matrix.asset }}"
+        run: |
+          BIN="dist/bolgrot/bolgrot"
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          SDL_VIDEODRIVER=dummy "$BIN" --selftest
+
+      - name: Zip the app folder
+        shell: bash
+        run: |
+          python -c "import shutil; shutil.make_archive('${{ matrix.asset }}', 'zip', 'dist', 'bolgrot')"
 
       - name: Upload as a run artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
-          path: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}.zip
 
       - name: Attach to the GitHub Release (tag pushes only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.asset }}
+          files: ${{ matrix.asset }}.zip
