@@ -6,6 +6,11 @@ You play a lone character on a diamond‑shaped map. Each turn a new wave of
 obstacle. Survive every wave and clear the board of flames to win — run out of
 HP and you lose.
 
+> 🎮 **Play it online:** a live web version is available at
+> **[bolgrot.web.app](https://bolgrot.web.app/)** — playable directly in the
+> browser, with the trained AI assistant suggesting the best move (or playing
+> for you). No install required.
+
 The project is also designed to be driven *headlessly* by an AI: all game rules
 live in a pure‑Python `Game` class with **no pygame dependency**, so the logic
 can be stepped programmatically (e.g. by a reinforcement‑learning agent) as well
