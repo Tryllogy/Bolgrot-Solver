@@ -51,25 +51,61 @@ target tile is a wall or off‑map, the flame falls back to BFS pathfinding.
 
 ---
 
-## Running the project
+## Installation & running
 
-Dependencies are managed with [`uv`](https://github.com/astral-sh/uv) and locked
-in `uv.lock`. A local `.venv` is used.
+**Requirements:** Python **3.9+**. Playing the game opens a window (pygame needs a
+display); AI training and benchmarking run headlessly.
+
+The project has two dependency levels, so you only install what you need:
+
+| Level | Adds | Use it to |
+|-------|------|-----------|
+| **base** | `pygame` | **play** the game |
+| **`ai` extra** | `torch`, `numpy` | run the **MCTS / AlphaZero** agents (train, benchmark, AI hints) |
+
+### Option A — [uv](https://github.com/astral-sh/uv) (recommended)
+
+`uv` reads `pyproject.toml` / `uv.lock` and creates a local `.venv` for you. Install
+uv once (see the [install guide](https://docs.astral.sh/uv/getting-started/installation/)),
+then:
+
+```bash
+uv sync                 # base: game only
+uv sync --extra ai      # base + the AI solver (torch/numpy)
+
+uv run python -m src    # play the game   (equivalently: uv run bolgrot)
+```
+
+### Option B — pip
+
+```bash
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+
+pip install -e .                     # base: game only
+pip install -e ".[ai]"               # base + the AI solver
+
+python -m src                        # play the game   (equivalently: bolgrot)
+```
+
+`pip install -e .` also installs the console script **`bolgrot`**, so once the
+virtualenv is active you can launch the game by just typing `bolgrot`.
+
+### Make shortcuts (thin wrappers over uv)
 
 ```bash
 make install      # uv sync — install dependencies
 make run          # install + launch the game
+make play         # watch a trained policy play (pulls the ai extra)
 make train        # train the PPO agent (make train ITERS=500)
 make resume       # continue training the last checkpoint (make resume ITERS=300)
-make play         # watch the trained policy play
-make clean        # remove __pycache__, build/test caches
 make lint         # flake8 + mypy
-
-# or directly:
-uv run python -m src
+make clean        # remove __pycache__ / build caches
 ```
 
-Once installed, the packaged console script `bolgrot` is also available.
+> **Command convention below:** the AI examples are written for uv as
+> `uv run --extra ai python -m …`. If you installed with **pip** (`.[ai]`, venv
+> active), just drop the `uv run --extra ai` prefix and run `python -m …` directly.
 
 ### Training an AI (PPO)
 

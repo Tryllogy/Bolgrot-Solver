@@ -1,0 +1,19 @@
+__pycache__
+.venv
+*.egg-info
+.mypy_cache
+src/ai/ppo.pt
+src/ai/ppo_ckpt.pt
+src/ai/az*.pt
+# ...but keep the tracked nets (site: escalation on az.pt, portfolio 2nd = az_deep2,
+# CNN grid net = first learned agent to beat az.pt, also the flywheel teacher)
+!src/ai/az.pt
+!src/ai/az_deep2.pt
+!src/ai/az_cnn_final.pt
+!src/ai/az_cnn_deep.pt
+src/ai/*.winbuf
+# Session scratchpad snapshots (analysis logs, diagnostic scripts, model backups)
+tmp/
+# Firebase CLI generated
+firebase-debug.log
+.firebase/
