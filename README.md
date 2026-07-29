@@ -190,6 +190,35 @@ uv run --extra ai python -m src.ai.play --policy src/ai/az.pt                # w
 
 ---
 
+## Building a standalone executable
+
+A [PyInstaller](https://pyinstaller.org/) spec (`bolgrot.spec`) freezes the game
+into a single self-contained executable — no Python install needed to play.
+
+```bash
+uv pip install pyinstaller          # or: pip install -e ".[build]"
+uv run pyinstaller bolgrot.spec --noconfirm --clean
+# -> dist/bolgrot        (Linux/macOS)
+# -> dist/bolgrot.exe    (Windows)
+```
+
+Notes:
+
+- **Game-only, ~20 MB.** The spec **excludes `torch`**, so the executable is
+  small and dependency-free. The AI hint / autoplay buttons still appear but
+  report that the `ai` extra is unavailable — a frozen app can't `pip install`
+  it. For the AI, run from source (`pip install -e ".[ai]"`). Bundling torch is
+  possible but makes the executable several hundred MB.
+- **Per-OS.** PyInstaller does not cross-compile: build on Windows for a `.exe`,
+  on Linux for an ELF binary, on macOS for a `.app`. Attach the result to your
+  GitHub *Releases* for a one-click download.
+- The map, sprites and spawn patterns are bundled via the spec's `datas` (the
+  game loads them through `importlib.resources`, so they must ship with their
+  package paths). Set `console=True` in the spec to see tracebacks while
+  debugging a build.
+
+---
+
 ## How it's built
 
 ### Architecture overview

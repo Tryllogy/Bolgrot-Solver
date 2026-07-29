@@ -1,0 +1,56 @@
+name: Build executables
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            built: dist/bolgrot.exe
+            asset: bolgrot-windows.exe
+          - os: ubuntu-latest
+            built: dist/bolgrot
+            asset: bolgrot-linux
+          - os: macos-latest
+            built: dist/bolgrot
+            asset: bolgrot-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps (game + PyInstaller)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[build]"
+
+      - name: Build the executable
+        run: pyinstaller bolgrot.spec --noconfirm --clean
+
+      - name: Name the binary per-OS
+        shell: bash
+        run: cp "${{ matrix.built }}" "${{ matrix.asset }}"
+
+      - name: Upload as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+
+      - name: Attach to the GitHub Release (tag pushes only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}

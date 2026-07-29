@@ -20,6 +20,9 @@ ai = [
     "torch>=2.0",
     "numpy>=1.24",
 ]
+build = [
+    "pyinstaller>=6.0",
+]
 
 [project.scripts]
 bolgrot = "src.__main__:main"

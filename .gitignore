@@ -2,6 +2,9 @@ __pycache__
 .venv
 *.egg-info
 .mypy_cache
+# PyInstaller build outputs
+build/
+dist/
 src/ai/ppo.pt
 src/ai/ppo_ckpt.pt
 src/ai/az*.pt
