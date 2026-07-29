@@ -131,6 +131,8 @@ class Renderer:
         y += 42 + 18
         self.hint_button_rect = pygame.Rect(ix, y, iw, 50)
         y += 50 + 10
+        self.step_button_rect = pygame.Rect(ix, y, iw, 50)
+        y += 50 + 10
         self.autoplay_button_rect = pygame.Rect(ix, y, iw, 50)
         y += 50 + 14
         self._status_pos = (ix, y)
@@ -176,6 +178,13 @@ class Renderer:
         pygame.draw.rect(self.screen, col, r, border_radius=8)
         label = "Calcul…" if (busy and not autoplay) else "Indice"
         self._center_label(r, label)
+        # "IA : 1 coup" — the AI plays exactly ONE move, then hands back.
+        sr = self.step_button_rect
+        shover = sr.collidepoint(mouse)
+        scol = (90, 90, 70) if not idle else (
+            (120, 100, 168) if shover else (96, 82, 140))
+        pygame.draw.rect(self.screen, scol, sr, border_radius=8)
+        self._center_label(sr, "IA : 1 coup")
         # "Autoplay" — toggle: the AI plays every move until stopped/done.
         ar = self.autoplay_button_rect
         ahover = ar.collidepoint(mouse)

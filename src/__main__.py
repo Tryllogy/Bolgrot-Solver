@@ -46,6 +46,7 @@ def main() -> None:
     placing = False           # custom sub-phase: designing the next wave
     autoplay = False
     autoplay_next = 0
+    ai_step = False           # one-shot: play the AI's next move, then stop
 
     def new_game(is_custom: bool) -> None:
         nonlocal game, custom, placing, autoplay, timer_sec
@@ -170,9 +171,16 @@ def main() -> None:
                         hint.set_budget(budget_hit)
                     elif renderer.autoplay_button_rect.collidepoint(pos):
                         autoplay = not autoplay
+                        ai_step = False
                         hint.clear()
                         autoplay_next = pygame.time.get_ticks()
+                    elif renderer.step_button_rect.collidepoint(pos):
+                        if not autoplay and not hint.busy:
+                            ai_step = True
+                            hint.clear()
+                            hint.request(game)
                     elif renderer.hint_button_rect.collidepoint(pos):
+                        ai_step = False
                         hint.request(game)
                     else:
                         is_on_previsu, previsu_index = on_previsu_click(
@@ -197,6 +205,18 @@ def main() -> None:
                             game.clear_previsu()
 
         hint.poll()
+
+        # "1 coup" : play the AI's move once it's computed, then hand back.
+        if state == PLAY and not placing and ai_step and not game.done:
+            if hint.result is not None and not hint.busy:
+                if hint.result.target is None:   # AI ends the turn
+                    do_end_turn()                # re-enters placement (custom)
+                else:
+                    game.step(hint.result.action)
+                    game.clear_previsu()
+                    timer_sec = constant.TIME_TURN
+                hint.clear()
+                ai_step = False
 
         # Autoplay: apply the AI's move when ready, then queue the next one.
         if state == PLAY and not placing and autoplay and not game.done:
