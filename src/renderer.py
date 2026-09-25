@@ -61,7 +61,8 @@ class Renderer:
         pygame.draw.rect(self.screen, col, rect, border_radius=10)
         self._center_label(rect, label)
 
-    def draw_home(self, mouse_x: int, mouse_y: int) -> None:
+    def draw_home(self, mouse_x: int, mouse_y: int,
+                  live: bool = False) -> None:
         """Draw the welcome screen with the two play modes."""
         mouse = (mouse_x, mouse_y)
         self.screen.fill((18, 18, 22))
@@ -75,10 +76,12 @@ class Renderer:
                                self.home_play_rect.y - 90))
         self._menu_button(self.home_play_rect, "Jouer", mouse)
         self._menu_button(self.home_custom_rect, "Placer mes flammes", mouse)
-        self._menu_button(self.home_live_rect, "Live Dofus", mouse)
+        last = self.home_custom_rect
+        if live:
+            self._menu_button(self.home_live_rect, "Live Dofus", mouse)
+            last = self.home_live_rect
         tip = self.font_txt.render("ÉCHAP : quitter", True, (120, 120, 120))
-        self.screen.blit(tip, (cx - tip.get_width() // 2,
-                               self.home_live_rect.bottom + 30))
+        self.screen.blit(tip, (cx - tip.get_width() // 2, last.bottom + 30))
 
     def draw_game_over(self, won: bool, mouse_x: int, mouse_y: int) -> None:
         """Dim the board and show the result plus Rejouer / Accueil buttons."""

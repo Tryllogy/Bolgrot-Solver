@@ -22,3 +22,5 @@ firebase-debug.log
 .firebase/
 # Live Dofus: recorded fights (raw game traffic)
 captures/
+# Live Dofus link: private, kept out of the public repo
+src/live/

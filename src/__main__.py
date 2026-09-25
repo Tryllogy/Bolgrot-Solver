@@ -7,7 +7,30 @@ from .case import CaseType
 from .actions import on_previsu_click
 from .renderer import Renderer
 from .hint import HintEngine
-from .live.feed import LiveFeed
+
+# The Live Dofus link (src/live) is private and not shipped in the public
+# repo: without it the mode is simply hidden from the home screen.
+try:
+    from .live.feed import LiveFeed
+    LIVE_AVAILABLE = True
+except ImportError:
+    LIVE_AVAILABLE = False
+
+    class LiveFeed:  # type: ignore[no-redef]
+        """No-op stand-in used when ``src/live`` is absent."""
+        status = ""
+
+        def __init__(self, max_flames: int = 6) -> None:
+            pass
+
+        def start(self) -> None:
+            pass
+
+        def stop(self) -> None:
+            pass
+
+        def poll(self) -> None:
+            return None
 
 # App states.
 HOME, PLAY, OVER = "home", "play", "over"
@@ -170,7 +193,8 @@ def main() -> None:
                     elif renderer.home_custom_rect.collidepoint(pos):
                         new_game(True)
                         state = PLAY
-                    elif renderer.home_live_rect.collidepoint(pos):
+                    elif (LIVE_AVAILABLE
+                          and renderer.home_live_rect.collidepoint(pos)):
                         new_game(True, is_live=True)
                         state = PLAY
                 elif state == OVER:
@@ -303,7 +327,7 @@ def main() -> None:
 
         # ---- draw ----------------------------------------------------------
         if state == HOME:
-            renderer.draw_home(mouse_x, mouse_y)
+            renderer.draw_home(mouse_x, mouse_y, LIVE_AVAILABLE)
         else:
             hint_target = (hint.result.target if (hint.result is not None
                            and not placing) else None)
