@@ -20,3 +20,5 @@ tmp/
 # Firebase CLI generated
 firebase-debug.log
 .firebase/
+# Live Dofus: recorded fights (raw game traffic)
+captures/

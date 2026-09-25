@@ -46,6 +46,8 @@ class Renderer:
         self.home_play_rect = pygame.Rect(cx - bw // 2, cy - 20, bw, bh)
         self.home_custom_rect = pygame.Rect(
             cx - bw // 2, cy - 20 + bh + 22, bw, bh)
+        self.home_live_rect = pygame.Rect(
+            cx - bw // 2, cy - 20 + 2 * (bh + 22), bw, bh)
         gbw = 250
         self.over_replay_rect = pygame.Rect(cx - gbw - 12, cy + 40, gbw, bh)
         self.over_home_rect = pygame.Rect(cx + 12, cy + 40, gbw, bh)
@@ -73,9 +75,10 @@ class Renderer:
                                self.home_play_rect.y - 90))
         self._menu_button(self.home_play_rect, "Jouer", mouse)
         self._menu_button(self.home_custom_rect, "Placer mes flammes", mouse)
+        self._menu_button(self.home_live_rect, "Live Dofus", mouse)
         tip = self.font_txt.render("ÉCHAP : quitter", True, (120, 120, 120))
         self.screen.blit(tip, (cx - tip.get_width() // 2,
-                               self.home_custom_rect.bottom + 30))
+                               self.home_live_rect.bottom + 30))
 
     def draw_game_over(self, won: bool, mouse_x: int, mouse_y: int) -> None:
         """Dim the board and show the result plus Rejouer / Accueil buttons."""
@@ -92,7 +95,8 @@ class Renderer:
         self._menu_button(self.over_home_rect, "Accueil", mouse)
 
     def draw_placement_hud(self, count: int, maxn: int, wave: int,
-                           mouse_x: int, mouse_y: int) -> None:
+                           mouse_x: int, mouse_y: int,
+                           live_status: str = "") -> None:
         """Instruction banner + a Valider button while placing a wave.
 
         The placed tiles are the game's ``spawn_pattern`` and are already
@@ -102,6 +106,11 @@ class Renderer:
                "(clic : ajouter / retirer)")
         t = self.font_title.render(txt, True, (255, 255, 255))
         self.screen.blit(t, (self.avail_w // 2 - t.get_width() // 2, 20))
+        if live_status:
+            ls = self.font_txt.render(f"Live : {live_status}", True,
+                                      (255, 220, 120))
+            self.screen.blit(ls, (self.avail_w // 2 - ls.get_width() // 2,
+                                  20 + t.get_height() + 8))
         r = self.hint_button_rect
         self._menu_button(r, "Valider", (mouse_x, mouse_y), enabled=count > 0)
 

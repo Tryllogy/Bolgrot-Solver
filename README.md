@@ -57,7 +57,7 @@ target tile is a wall or off‑map, the flame falls back to BFS pathfinding.
 
 ### Game modes
 
-Launching opens a **home screen** with two modes:
+Launching opens a **home screen** with three modes:
 
 - **Jouer** — the normal game: each wave spawns from the built‑in random
   patterns.
@@ -66,6 +66,8 @@ Launching opens a **home screen** with two modes:
   **Valider** (or `SPACE`) and play the turn. Tiles may be empty **or already
   holding a flame** (you can stack a new wave onto existing flames); walls, the
   player and Bolgrot are off‑limits. Same idea as the online custom mode.
+- **Live Dofus** — the same, but each wave is read from your real Dofus
+  fight (see *Live Dofus* below).
 
 The window **stays open when a game ends**: a *Victoire !* / *Défaite* banner
 offers **Rejouer** (`R`) or **Accueil**. `ESC` returns to the home screen at any
@@ -91,6 +93,31 @@ The search runs on a background thread so the window stays responsive, and it
 reuses the exact agents from `src/ai/`. **Hints and autoplay require the `ai`
 extra** (`uv sync --extra ai` or `pip install -e ".[ai]"`); without it the game
 still plays and the buttons just report the missing dependency.
+
+### Live Dofus (automatic wave placement)
+
+**Live Dofus** on the home screen is the *Placer mes flammes* mode, fed by
+the real fight: each wave Ankama sends is read off the network and placed
+and validated by itself, so the hints follow your actual Bolgrot fight.
+
+It is **read-only**: `tshark` (install [Wireshark](https://www.wireshark.org/)
+with Npcap) copies the packets off the network card — no proxy, no hosts
+file, nothing is ever sent to the game. Code in `src/live/`.
+
+Ankama's message names are obfuscated, so the wave message is found once
+from a recorded fight:
+
+```bash
+python -m src.live capture                  # record a Bolgrot fight (Ctrl+C)
+python -m src.live analyze captures/X.jsonl # -> src/live/protocol.json
+python -m src.live watch captures/X.jsonl   # check the decoded waves
+```
+
+`analyze` needs no manual work: it looks for the message field whose cell
+ids land exactly on legal spawn patterns. Dofus cell ids map to the Bolgrot
+grid directly (`src/live/cells.py`). Live Dofus also records every session
+to `captures/`, so the first fight can be analysed afterwards. A game update
+may rename the messages: re-run `analyze` on a new capture.
 
 ---
 

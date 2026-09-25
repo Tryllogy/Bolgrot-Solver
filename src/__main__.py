@@ -7,6 +7,7 @@ from .case import CaseType
 from .actions import on_previsu_click
 from .renderer import Renderer
 from .hint import HintEngine
+from .live.feed import LiveFeed
 
 # App states.
 HOME, PLAY, OVER = "home", "play", "over"
@@ -40,22 +41,31 @@ def main() -> None:
     game: Game = Game(player=Player(*constant.BASE_PLAYER_POS))
     renderer = Renderer(screen, font_title, font_txt, game.map.cases)
     hint = HintEngine()
+    live_feed = LiveFeed(MAX_FLAMES)
 
     state = HOME
     custom = False            # current game's mode
+    live = False              # custom mode fed by the sniffed Dofus fight
     placing = False           # custom sub-phase: designing the next wave
     autoplay = False
     autoplay_next = 0
     ai_step = False           # one-shot: play the AI's next move, then stop
 
-    def new_game(is_custom: bool) -> None:
-        nonlocal game, custom, placing, autoplay, timer_sec
+    def new_game(is_custom: bool, is_live: bool = False) -> None:
+        nonlocal game, custom, live, placing, autoplay, ai_step, timer_sec
         game = Game(player=Player(*constant.BASE_PLAYER_POS))
-        custom = is_custom
+        custom = is_custom or is_live
+        live = is_live
+        if live:
+            live_feed.start()       # (re)start listening, drop stale waves
+        else:
+            live_feed.stop()
+        is_custom = custom
         placing = is_custom       # custom starts by placing wave 1
         if is_custom:
             game.spawn_pattern = []   # player designs it (drop the auto wave)
         autoplay = False
+        ai_step = False
         timer_sec = constant.TIME_TURN
         hint.clear()
 
@@ -104,6 +114,8 @@ def main() -> None:
                     else:
                         state = HOME
                         autoplay = False
+                        ai_step = False
+                        live_feed.stop()
                         hint.clear()
                 elif state == PLAY and placing:
                     if event.key == pygame.K_SPACE:
@@ -119,7 +131,7 @@ def main() -> None:
                     if event.key in (pygame.K_RETURN, pygame.K_SPACE):
                         state = HOME
                     if event.key == pygame.K_r:
-                        new_game(custom)
+                        new_game(custom, live)
                         state = PLAY
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -131,12 +143,16 @@ def main() -> None:
                     elif renderer.home_custom_rect.collidepoint(pos):
                         new_game(True)
                         state = PLAY
+                    elif renderer.home_live_rect.collidepoint(pos):
+                        new_game(True, is_live=True)
+                        state = PLAY
                 elif state == OVER:
                     if renderer.over_replay_rect.collidepoint(pos):
-                        new_game(custom)
+                        new_game(custom, live)
                         state = PLAY
                     elif renderer.over_home_rect.collidepoint(pos):
                         state = HOME
+                        live_feed.stop()
                 elif state == PLAY and placing:
                     # Valider reuses the hint button rect; else toggle a tile.
                     if renderer.hint_button_rect.collidepoint(pos):
@@ -206,6 +222,18 @@ def main() -> None:
 
         hint.poll()
 
+        # Live Dofus: a sniffed wave fills the placement and validates it.
+        if state == PLAY and placing and live:
+            wave = live_feed.poll()
+            if wave is not None:
+                game.spawn_pattern = [
+                    p for p in wave
+                    if (c := game.map.cases.get(p)) is not None
+                    and c.case_type == CaseType.FREE
+                    and (c.entity is None or type(c.entity) is Flame)
+                ][:MAX_FLAMES]
+                confirm_placement()
+
         # "1 coup" : play the AI's move once it's computed, then hand back.
         if state == PLAY and not placing and ai_step and not game.done:
             if hint.result is not None and not hint.busy:
@@ -252,7 +280,8 @@ def main() -> None:
             if placing:
                 renderer.draw_placement_hud(
                     len(game.spawn_pattern), MAX_FLAMES,
-                    game.waves_spawned + 1, mouse_x, mouse_y)
+                    game.waves_spawned + 1, mouse_x, mouse_y,
+                    live_status=live_feed.status if live else "")
             else:
                 renderer.end_turn_button.draw(mouse_x, mouse_y)
                 if hint.result is not None and hint.result.target is None:
@@ -270,6 +299,7 @@ def main() -> None:
         clock.tick(60)
 
     pygame.quit()
+    live_feed.stop()
     # If a hint search is still running (e.g. quit mid Fort@8000), a daemon
     # thread caught inside torch aborts the C++ teardown at exit — skip it.
     if hint.has_active():
