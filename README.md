@@ -84,13 +84,21 @@ end‑turn button). You pick:
 - **Budget** — search simulations per move: **300 / 1000 / 8000** (more = stronger
   and slower; 8000 with *Fort* takes tens of seconds).
 
-The **Autoplay** button lets the chosen agent play the whole game on its own —
-it applies its own move each step (with a short pause so you can watch) until the
-board is cleared, the player dies, or you press **Autoplay** again to stop and
-take back control. The engine/budget selectors apply to autoplay too.
+The **IA : tours** button lets the chosen agent play **one full turn at a time**:
+it applies its moves one by one (with a short pause so you can watch) and, when it
+would end the turn, stops with **End turn** highlighted. Press **End turn** (or
+`SPACE`) and it plays the next turn — handy to copy its moves into the real game.
+Every AI move of the current turn (from **IA : tours** or **IA : 1 coup**) is
+tracked: the targeted tile is highlighted with a numbered badge coloured by spell
+(blue = Saut astral, purple = Double saut, orange = Inaction), a line shows where
+the player jumped from, and a numbered list (spell -> tile) sits under HP/AP.
+Click a row of that list to hide its marks on the board (the row greys out);
+click it again to show them. The trail resets at each new turn.
+Press **Arrêter l'IA** to take back control. While it is on, the turn timer never
+ends a turn by itself. The engine/budget selectors apply to it too.
 
 The search runs on a background thread so the window stays responsive, and it
-reuses the exact agents from `src/ai/`. **Hints and autoplay require the `ai`
+reuses the exact agents from `src/ai/`. **Hints and AI turns require the `ai`
 extra** (`uv sync --extra ai` or `pip install -e ".[ai]"`); without it the game
 still plays and the buttons just report the missing dependency.
 

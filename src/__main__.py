@@ -47,12 +47,20 @@ def main() -> None:
     custom = False            # current game's mode
     live = False              # custom mode fed by the sniffed Dofus fight
     placing = False           # custom sub-phase: designing the next wave
+    # "IA : tours" mode: the AI plays each turn's moves by itself, then waits
+    # (autoplay_waiting) for the player to press End turn before the next.
     autoplay = False
+    autoplay_waiting = False
     autoplay_next = 0
     ai_step = False           # one-shot: play the AI's next move, then stop
+    # This turn's AI actions, in order, for the on-board trail and the panel
+    # list: (spell index, spell name, origin tile, target tile).
+    ai_trail: list[tuple[int, str, tuple[int, int], tuple[int, int]]] = []
+    trail_hidden: set[int] = set()   # trail indices masked on the board
 
     def new_game(is_custom: bool, is_live: bool = False) -> None:
-        nonlocal game, custom, live, placing, autoplay, ai_step, timer_sec
+        nonlocal game, custom, live, placing, autoplay, autoplay_waiting
+        nonlocal ai_step, timer_sec
         game = Game(player=Player(*constant.BASE_PLAYER_POS))
         custom = is_custom or is_live
         live = is_live
@@ -65,13 +73,31 @@ def main() -> None:
         if is_custom:
             game.spawn_pattern = []   # player designs it (drop the auto wave)
         autoplay = False
+        autoplay_waiting = False
         ai_step = False
+        ai_trail.clear()
+        trail_hidden.clear()
         timer_sec = constant.TIME_TURN
         hint.clear()
 
+    def apply_ai_move(action: int) -> None:
+        """Play the AI's spell ``action`` and log it on this turn's trail."""
+        nonlocal timer_sec
+        spell_idx, (dx, dy) = Game.ACTIONS[action]
+        origin = (game.player.pos_x, game.player.pos_y)
+        game.step(action)
+        if spell_idx is not None and not game.last_reward["illegal"]:
+            ai_trail.append((spell_idx, game.player.spells[spell_idx].name,
+                             origin, (origin[0] + dx, origin[1] + dy)))
+        game.clear_previsu()
+        timer_sec = constant.TIME_TURN
+
     def do_end_turn() -> None:
-        nonlocal placing, timer_sec
+        nonlocal placing, timer_sec, autoplay_waiting
         game.end_turn()
+        ai_trail.clear()
+        trail_hidden.clear()
+        autoplay_waiting = False          # AI mode: play the new turn
         hint.clear()
         game.clear_previsu()
         timer_sec = constant.TIME_TURN
@@ -114,6 +140,7 @@ def main() -> None:
                     else:
                         state = HOME
                         autoplay = False
+                        autoplay_waiting = False
                         ai_step = False
                         live_feed.stop()
                         hint.clear()
@@ -175,18 +202,25 @@ def main() -> None:
                             elif len(game.spawn_pattern) < MAX_FLAMES:
                                 game.spawn_pattern.append(p)
                 elif state == PLAY:
+                    trail_hit = next(
+                        (i for i, r in enumerate(
+                            renderer.trail_row_rects(len(ai_trail)))
+                         if r.collidepoint(pos)), None)
                     engine_hit = next(
                         (k for k, r in renderer.engine_rects.items()
                          if r.collidepoint(pos)), None)
                     budget_hit = next(
                         (k for k, r in renderer.budget_rects.items()
                          if r.collidepoint(pos)), None)
-                    if engine_hit is not None:
+                    if trail_hit is not None:
+                        trail_hidden ^= {trail_hit}     # toggle its marks
+                    elif engine_hit is not None:
                         hint.set_engine(engine_hit)
                     elif budget_hit is not None:
                         hint.set_budget(budget_hit)
                     elif renderer.autoplay_button_rect.collidepoint(pos):
                         autoplay = not autoplay
+                        autoplay_waiting = False
                         ai_step = False
                         hint.clear()
                         autoplay_next = pygame.time.get_ticks()
@@ -240,24 +274,26 @@ def main() -> None:
                 if hint.result.target is None:   # AI ends the turn
                     do_end_turn()                # re-enters placement (custom)
                 else:
-                    game.step(hint.result.action)
-                    game.clear_previsu()
-                    timer_sec = constant.TIME_TURN
+                    apply_ai_move(hint.result.action)
                 hint.clear()
                 ai_step = False
 
-        # Autoplay: apply the AI's move when ready, then queue the next one.
-        if state == PLAY and not placing and autoplay and not game.done:
+        # AI turns: apply the AI's moves one by one; when it would end the
+        # turn, stop there (End turn stays highlighted) until the player
+        # presses End turn — do_end_turn() then lets it play the next turn.
+        if (state == PLAY and not placing and autoplay
+                and not autoplay_waiting and not game.done):
             now = pygame.time.get_ticks()
             if hint.result is not None and not hint.busy:
-                if hint.result.target is None:   # AI ends the turn
-                    do_end_turn()                # re-enters placement (custom)
+                if hint.result.target is None:   # AI's turn is over
+                    # Keep the result so End turn stays highlighted.
+                    autoplay_waiting = True
+                    hint.status = ("Tour de l'IA terminé : appuyez sur "
+                                   "« End turn »")
                 else:
-                    game.step(hint.result.action)
-                    game.clear_previsu()
-                    timer_sec = constant.TIME_TURN
-                hint.clear()
-                autoplay_next = now + AUTOPLAY_DELAY_MS
+                    apply_ai_move(hint.result.action)
+                    hint.clear()
+                    autoplay_next = now + AUTOPLAY_DELAY_MS
             elif not hint.busy and now >= autoplay_next:
                 hint.request(game)
 
@@ -273,8 +309,11 @@ def main() -> None:
                            and not placing) else None)
             renderer.draw_map(mouse_x, mouse_y, game.map.cases,
                               game.previsualiation, game.spawn_pattern,
-                              hint_target=hint_target)
+                              hint_target=hint_target,
+                              trail=[t[3] for i, t in enumerate(ai_trail)
+                                     if i not in trail_hidden])
             renderer.draw_entities(game.map.cases)
+            renderer.draw_ai_trail(ai_trail, trail_hidden)
             renderer.draw_hp_player(game.player)
             renderer.draw_ap_player(game.player)
             if placing:
@@ -291,6 +330,8 @@ def main() -> None:
                 renderer.draw_hint_panel(mouse_x, mouse_y, hint.engine,
                                          hint.budget, hint.status, hint.busy,
                                          autoplay)
+                renderer.draw_trail_list(ai_trail, trail_hidden,
+                                         mouse_x, mouse_y)
             if state == OVER:
                 renderer.draw_game_over(game.won, mouse_x, mouse_y)
 

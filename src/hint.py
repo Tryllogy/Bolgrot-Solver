@@ -176,4 +176,4 @@ class HintEngine:
             else f"Sort {spell_idx}"
         target = (px + dx, py + dy)
         return HintResult(action, target,
-                          f"Indice : {name} → {target}")
+                          f"Indice : {name} -> {target}")

@@ -21,6 +21,10 @@ SPAWN_COLOR_1 = (151, 13, 158)
 PREVISU_COLOR = (9, 91, 158)
 # Fills the AI hint's recommended target tile.
 HINT_COLOR = (40, 200, 70)
+# AI move trail (this turn's AI actions): tile fill, and one badge colour per
+# spell index (0 = Saut astral, 1 = Double saut, 2 = Inaction).
+TRAIL_TILE_COLOR = (140, 205, 235)
+TRAIL_SPELL_COLORS = ((40, 110, 230), (150, 60, 200), (230, 120, 20))
 BACKGROUND_POPUP = (79, 79, 61)
 
 RIGHT_PANEL_W = 400

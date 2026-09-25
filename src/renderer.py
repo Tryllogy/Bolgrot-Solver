@@ -194,16 +194,56 @@ class Renderer:
             (120, 100, 168) if shover else (96, 82, 140))
         pygame.draw.rect(self.screen, scol, sr, border_radius=8)
         self._center_label(sr, "IA : 1 coup")
-        # "Autoplay" — toggle: the AI plays every move until stopped/done.
+        # "IA : tours" — toggle: the AI plays each turn, then waits for the
+        # player's End turn before playing the next one.
         ar = self.autoplay_button_rect
         ahover = ar.collidepoint(mouse)
         acol = (176, 66, 66) if autoplay else (
             (73, 161, 108) if ahover else (58, 118, 84))
         pygame.draw.rect(self.screen, acol, ar, border_radius=8)
-        self._center_label(ar, "Arrêter l'auto" if autoplay else "Autoplay")
+        self._center_label(ar, "Arrêter l'IA" if autoplay else "IA : tours")
         if status:
             self._blit_wrapped(status, self._status_pos, self._status_w,
                                (255, 220, 120))
+
+    def trail_row_rects(self, count: int) -> list[pygame.Rect]:
+        """Clickable rects of the first ``count`` rows of the action list."""
+        top = 110 + self.font_txt.get_height() + 10
+        return [pygame.Rect(6, top + 28 * i - 2, 270, 26)
+                for i in range(count)]
+
+    def draw_trail_list(
+        self,
+        trail: list[tuple[int, str, tuple[int, int], tuple[int, int]]],
+        hidden: set[int],
+        mouse_x: int,
+        mouse_y: int,
+    ) -> None:
+        """Log of this turn's AI actions (top-left, under HP/AP): badge,
+        spell and target tile, matching the badges on the board.
+
+        Each row toggles its action's marks on the board; rows whose index
+        is in ``hidden`` are greyed out.
+        """
+        if not trail:
+            return
+        self.screen.blit(self.font_txt.render(
+            "Actions de l'IA (clic : masquer / afficher) :", True,
+            (220, 220, 220)), (10, 110))
+        rects = self.trail_row_rects(len(trail))
+        for i, (spell_idx, name, _, target) in enumerate(trail):
+            rect = rects[i]
+            if rect.collidepoint(mouse_x, mouse_y):
+                pygame.draw.rect(self.screen, (50, 50, 44), rect,
+                                 border_radius=4)
+            off = i in hidden
+            self._badge((rect.x + 16, rect.y + 12), i + 1,
+                        (95, 95, 95) if off
+                        else constant.TRAIL_SPELL_COLORS[spell_idx])
+            self.screen.blit(self.font_txt.render(
+                f"{name} -> {target}", True,
+                (115, 115, 115) if off else (235, 235, 235)),
+                (rect.x + 36, rect.y + 4))
 
     def _center_label(self, rect: pygame.Rect, label: str) -> None:
         """Blit ``label`` (title font) centred in ``rect``."""
@@ -279,13 +319,20 @@ class Renderer:
         spawn_pattern: list[tuple],
         show_coords: bool = False,
         hint_target: tuple[int, int] | None = None,
+        trail: list[tuple[int, int]] | None = None,
     ) -> None:
         """Draw every cell, colouring previsu/spawn/hint tiles and the hovered.
+
+        ``trail`` tiles (targets of this turn's AI actions) get their own fill;
+        :meth:`draw_ai_trail` adds the numbered badges on top.
         """
+        trail_set = set(trail or ())
         for case in cases.values():
             x, y = case.x, case.y
             if (x, y) == hint_target:
                 color = constant.HINT_COLOR
+            elif (x, y) in trail_set:
+                color = constant.TRAIL_TILE_COLOR
             elif (x, y) in previsualiation:
                 color = constant.PREVISU_COLOR
             elif (x, y) in spawn_pattern:
@@ -296,7 +343,7 @@ class Renderer:
                 color = constant.CASE_COLOR_2
             if case.contains(mouse_x, mouse_y, self.offset):
                 r, g, b = color
-                color = (r, g + 50, b + 50)
+                color = (r, min(g + 50, 255), min(b + 50, 255))
             case.draw(self.screen, self.offset, color,
                       self.font_txt, show_coords)
 
@@ -319,6 +366,45 @@ class Renderer:
                     pygame.draw.circle(self.screen, [0, 255, 0], (cx, cy), 15)
                 case TypeEntity.FLAME:
                     pygame.draw.circle(self.screen, [255, 0, 0], (cx, cy), 15)
+
+    def _tile_center(self, pos: tuple[int, int]) -> tuple[int, int]:
+        """Screen pixel centre of grid tile ``pos``."""
+        x, y = pos
+        return (int((x - y) * (constant.CASE_WIDTH / 2)) + self.offset[0],
+                int((x + y) * (constant.CASE_HEIGHT / 2)) + self.offset[1])
+
+    def _badge(self, center: tuple[int, int], number: int,
+               color: tuple[int, int, int]) -> None:
+        """A small numbered disc in ``color`` with a white outline."""
+        pygame.draw.circle(self.screen, color, center, 12)
+        pygame.draw.circle(self.screen, (255, 255, 255), center, 12, 2)
+        t = self.font_txt.render(str(number), True, (255, 255, 255))
+        self.screen.blit(t, (center[0] - t.get_width() // 2,
+                             center[1] - t.get_height() // 2 + 1))
+
+    def draw_ai_trail(
+        self,
+        trail: list[tuple[int, str, tuple[int, int], tuple[int, int]]],
+        hidden: set[int] | None = None,
+    ) -> None:
+        """Number this turn's AI actions on the board.
+
+        Each ``(spell_idx, name, origin, target)`` gets a line from where the
+        player stood to the targeted tile and a badge (action number, coloured
+        by spell) on the target; repeated tiles fan their badges out. Actions
+        whose index is in ``hidden`` are skipped (numbers are kept).
+        """
+        per_tile: dict[tuple[int, int], int] = {}
+        for number, (spell_idx, _, origin, target) in enumerate(trail, 1):
+            if hidden and number - 1 in hidden:
+                continue
+            color = constant.TRAIL_SPELL_COLORS[spell_idx]
+            cx, cy = self._tile_center(target)
+            pygame.draw.line(self.screen, color, self._tile_center(origin),
+                             (cx, cy), 3)
+            k = per_tile.get(target, 0)
+            per_tile[target] = k + 1
+            self._badge((cx - 14 + 26 * k, cy - 20), number, color)
 
     def draw_timer(self, timer_text: pygame.Surface) -> None:
         """Blit the pre-rendered turn-timer text above the end-turn button."""
